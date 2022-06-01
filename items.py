@@ -15,6 +15,7 @@ class Weapon:
         return sum([random.randint(1, self.dice_sides) for _ in range(self.num_dice)]) + self.damage_bonus + ext_damage_bonus
 
 
+wep_allopew_rifle   =   Weapon("Allopew Rifle",     1, 4, 0)
 
 wep_assault_rifle   =   Weapon("Assault Rifle",     1, 6, 0)
 wep_shotgun         =   Weapon("Shotgun",           2, 4, 0)

@@ -1,6 +1,7 @@
 import random
 from enum import Enum, auto, IntFlag, unique
 import math
+from re import S
 
 from items import Weapon, wep_assault_rifle, wep_shotgun, wep_laser_cannon, wep_laser_rifle, wep_plasma_cannon, wep_plasma_rifle, wep_rocket_launcher, wep_shrapnel_gun, wep_sniper, wep_void_gun
 from logger import log
@@ -50,7 +51,7 @@ class Unit:
 
     def __init__(self, name:str, max_hit_points:int=1, armor_class:int=10, attack_bonus:int=0, weapon:Weapon=None, armor:int=0, will:int=0, max_shields:int=0,
     shield_regen:int = 0, evasion:int = 0, crit_level:int = 0, crit_resist:int = 0, number_explosives:int = 0, ordinance_level:int = 0, agro:int = 4,
-    cost:int = 10_000, proficiency:int=0, retaliation_chance:int = 0, hit_die:int = 0, num_hit_dice:int = 0, damage_bonus:int = 0):
+    cost:int = 10_000, proficiency:int=0, retaliation_chance:int = 0, hit_die_type:int = 0, num_hit_dice:int = 0, damage_bonus:int = 0):
         self.name:str               =   name
         self.max_hit_points:int     =   max_hit_points
         self.cur_hit_points:int     =   max_hit_points
@@ -74,8 +75,9 @@ class Unit:
         self.cost:int               =   cost                                #TODO move to own alien class
         self.proficiency:int        =   proficiency
         self.retaliation_chance:int =   retaliation_chance
-        self.hit_die:int            =   hit_die
+        self.hit_die_type:int       =   hit_die_type
         self.num_hit_dice:int       =   num_hit_dice
+        self.id                     =   None                #Aliens only
 
         self.state:UnitState        =   UnitState.Alive
 
@@ -88,8 +90,12 @@ class Unit:
         self.shots_hit:int          =   0
 
     @classmethod
-    def from_dictionary(cls, dictionary:dict):
-        return cls(**dictionary)
+    def from_dictionary(cls, dictionary:dict, id:int=None):
+        alien = cls(**dictionary)
+
+        if id: alien.id = id
+
+        return alien
 
     def damage_callback(self, inflictor) -> None:
         """Function called whenever the unit is damaged"""
@@ -306,6 +312,9 @@ class Unit:
     def __str__(self) -> str:
         name = f"{self.name}"
 
+        if self.id:
+            name += f" {self.id}"
+
         return name
 
 
@@ -329,7 +338,7 @@ class XCOMSoldier(Unit):
 
     def __init__(self, name:str):
 
-        super(XCOMSoldier, self).__init__(name, max_hit_points=6, armor_class=10, weapon = wep_assault_rifle)
+        super(XCOMSoldier, self).__init__(name, max_hit_points=6, armor_class=10, weapon = wep_assault_rifle, num_hit_dice=1, hit_die_type=4)
         self.perk_flags:Perk            =       Perk.NONE
         self.bleedout_timer:int         =       0
         self.max_bleedout:int           =       0
@@ -351,6 +360,15 @@ class XCOMSoldier(Unit):
 
         if previous_state != self.state:
             log.debug(f"{self}'s state updated: {previous_state.name} ==> {self.state.name}")
+
+    def rest(self) -> None:
+        """TODO"""
+
+        self.cur_shields = self.max_shields
+        self.available_ordinance = self.max_ordinance
+        
+        hp_restore = sum([random.randint(1,self.hit_die_type) for _ in range(self.num_hit_dice)]) + self.recovery_bonus
+        self.heal(hp_restore)
 
     def hit_callback(self) -> None:
         self.exp += XCOMSoldier.exp_wound
@@ -377,16 +395,16 @@ class XCOMSoldier(Unit):
 
         self.update_state()
 
-    def award_exp(self, exp:int) -> None:
+    def check_for_level_up(self) -> None:
 
         if self.level >= XCOMSoldier.max_level: return
 
-        log.log(f"{self} gained {exp} exp ({self.exp})")
-        self.exp += exp
+        #log.log(f"{self} gained {exp} exp ({self.exp})")
+        #self.exp += exp
 
         while self.exp >= self.next_level_requirement:
             self.level += 1
-            log.log(f"{self} leveld up to level {self.level}")
+            log.log(f"{self} leveled up to level {self.level}")
 
             if self.level in XCOMSoldier.proficiency_bonus_table:
                 log.log(f"{self}'s proficiency has risen")
@@ -403,7 +421,7 @@ class XCOMSoldier(Unit):
 
 
     def level_up_bonus(self):
-        hp_increase = sum([random.randint(1, self.hit_die) for _ in range(self.num_hit_dice)])
+        hp_increase = sum([random.randint(1, self.hit_die_type) for _ in range(self.num_hit_dice)])
         log.log(f"{self}'s maximum hit points increased by {hp_increase} to {self.max_hit_points + hp_increase}")
         self.max_hit_points += hp_increase
         self.cur_hit_points += hp_increase

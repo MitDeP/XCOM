@@ -3,6 +3,7 @@ import random
 from sre_parse import State
 from typing import List
 from enum import Enum, auto
+from xml.dom.NodeFilter import NodeFilter
 
 from logger import log
 from units import Unit, XCOMSoldier as Soldier, UnitState
@@ -15,8 +16,6 @@ class BattleState(Enum):
     HumansWin       =   auto()
     HumansLose      =   auto()
 
-
-
 class Battle:
 
 
@@ -27,7 +26,7 @@ class Battle:
         self.stabilized:list        =   []
         self.aliens:List[Unit]      =   aliens
         self.battlestate:Enum       =   BattleState.NullState
-        self.survived:list          =   []
+        self.__survived:list          =   []
         
     def fight(self) -> None:
         self.__fight()
@@ -64,12 +63,11 @@ class Battle:
             log.log(f"\n##########\nRound {round}\n##########\n")
 
             #Buffer list for survivors
-            self.survived.clear()
+            self.__survived.clear()
 
             #Iterate over all humans
             self.battlestate = BattleState.HumanTurn
             for human in self.humans:
-                log.log("")
                 log.trace(f"It is now {human}'s turn")
                 if human.use_ordinance():
                     #TODO: move this code too
@@ -100,7 +98,7 @@ class Battle:
                 #finally, put human in proper list
                 if human.state == UnitState.Alive:
                     log.debug(f"{human} survived to the next round")
-                    self.survived.append(human)
+                    self.__survived.append(human)
                 elif human.state == UnitState.Dying:
                     log.debug(f"{human} is put into bleeding out")
                     self.bleeding_out.append(human)
@@ -112,14 +110,16 @@ class Battle:
                     self.killed_humans.append(human)
                 else:
                     log.warning(f"Invalid/unknown state for {human} - {human.state!r}")
-                    self.survived.append(human)
+                    self.__survived.append(human)
+
+                log.log("", notify=True)
 
                 if not any(self.aliens): return
 
                 
 
             #Finally, put the humans back in place.
-            self.humans = self.survived.copy()
+            self.humans = self.__survived.copy()
 
             #Check if we can quit early
             if not self.two_sides_remain:
@@ -128,12 +128,11 @@ class Battle:
 
             log.wait()
 
-            log.log("\n=============\nAlien's Turn\n=============")
+            log.log("\n=============\nAlien's Turn\n=============\n")
             
-            self.survived.clear()
+            self.__survived.clear()
             self.battlestate.AlienTurn
             for alien in self.aliens:
-                log.log("")
                 #TODO: put alien combat code here
                 if alien.use_ordinance():
                     #TODO: move this code too
@@ -175,7 +174,7 @@ class Battle:
 
                 if alien.state  ==  UnitState.Alive:
                     log.debug(f"{alien} has survived to next round")
-                    self.survived.append(alien)
+                    self.__survived.append(alien)
 
                 elif alien.state == UnitState.Dead:
                     log.debug(f"{alien} is dead. Nothing to do")
@@ -183,12 +182,14 @@ class Battle:
                 
                 else:
                     log.warning(f"Invalid/Unknown state for {alien} - {alien.state!r}")
-                    self.survived.append(alien)
+                    self.__survived.append(alien)
+
+                log.log("",notify=True)
 
                 if not self.two_sides_remain: return
 
-            self.aliens = self.survived.copy()
-            self.survived.clear()
+            self.aliens = self.__survived.copy()
+            self.__survived.clear()
 
 
             #Again, see if we can leave early.
@@ -213,3 +214,60 @@ class Battle:
         """Function for testing if two sides are still fighting"""
         return any(self.humans) and any(self.aliens)
 
+
+    @property
+    def humans_win(self) -> bool:
+        """TODO"""
+
+        if self.battlestate == BattleState.NullState:
+            log.warning(f"Request for winner occurred before battle occured, or battle did not conclude properly")
+
+
+        return self.battlestate != BattleState.HumansLose 
+
+class BattleSeries:
+
+
+    def __init__(self, humans:list, alien_list):
+
+        self.humans = humans
+        self.battle_list = alien_list
+        self.last_battle = None
+        self.humans_heal_between_battles:bool       =   True
+        self.humans_level_between_battles:bool      =   True
+        self.humans_kia:list =   []
+
+
+
+    def run(self):
+        """TODO"""
+
+        for battle_no, enemy_list in enumerate(self.battle_list, start=1):
+            bat = Battle(self.humans, enemy_list)
+            self.last_battle = bat
+            log.log(f"Battle {battle_no}", notify=True)
+            bat.fight()
+
+            self.humans_kia += bat.killed_humans
+            self.humans = bat.humans
+
+            if not bat.humans_win:
+                log.log(f"\nHumanity has been defeated!\n", notify=True)
+                return
+            else:
+                log.log(f"\nThe humans are victorious!\n", notify=True)
+
+            if self.process_between_battles:
+                for human in self.humans:
+
+                    if self.humans_heal_between_battles:
+                        human.rest()
+
+                    if self.humans_level_between_battles:
+                        human.check_for_level_up()
+
+
+    @property
+    def process_between_battles(self) -> bool:
+        return self.humans_heal_between_battles \
+        or self.humans_level_between_battles

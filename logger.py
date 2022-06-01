@@ -6,9 +6,9 @@ class Logger:
 
     def __init__(self):
         self._trace:bool        =   False
-        self._debug:bool        =   True
+        self._debug:bool        =   False
         self._warning:bool      =   True
-        self.buffer:bool        =   False
+        self.buffer:bool        =   True
 
     def log(self, msg:str, notify:bool = False):
         if notify:
