@@ -25,9 +25,10 @@ class Logger:
 
         if self._debug:  self.log(f"DEBUG:\t{msg}")
 
-    def wait(self):
+    def wait(self, newlines:int=0):
+        str = "\n"*newlines
         if self.buffer:
-            input()
+            input(str)
 
     def warning(self, msg:str):
 

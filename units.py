@@ -51,7 +51,7 @@ class Unit:
 
     def __init__(self, name:str, max_hit_points:int=1, armor_class:int=10, attack_bonus:int=0, weapon:Weapon=None, armor:int=0, will:int=0, max_shields:int=0,
     shield_regen:int = 0, evasion:int = 0, crit_level:int = 0, crit_resist:int = 0, number_explosives:int = 0, ordinance_level:int = 0, agro:int = 4,
-    cost:int = 10_000, proficiency:int=0, retaliation_chance:int = 0, hit_die_type:int = 0, num_hit_dice:int = 0, damage_bonus:int = 0):
+    cost:int = 10_000, proficiency:int=0, retaliation_chance:int = 0, hit_die_type:int = 0, num_hit_dice:int = 0, damage_bonus:int = 0, custom_weapon:tuple = None):
         self.name:str               =   name
         self.max_hit_points:int     =   max_hit_points
         self.cur_hit_points:int     =   max_hit_points
@@ -70,7 +70,7 @@ class Unit:
         self.crit_resist:int        =   crit_resist
         self.max_ordinance:int      =   number_explosives
         self.available_ordinance:int=   number_explosives
-        self.ordiance_level:int     =   ordinance_level
+        self.ordinance_level:int    =   ordinance_level
         self.agro:int               =   agro                                #Unused in old engine
         self.cost:int               =   cost                                #TODO move to own alien class
         self.proficiency:int        =   proficiency
@@ -80,6 +80,10 @@ class Unit:
         self.id                     =   None                #Aliens only
 
         self.state:UnitState        =   UnitState.Alive
+
+
+        if custom_weapon and not weapon:
+            self.weapon = Weapon("Custom Weapon", custom_weapon[0], custom_weapon[1], custom_weapon[2])
 
 
         #Stat Tracking
@@ -103,7 +107,7 @@ class Unit:
         self.update_state()
 
     def use_ordinance(self) -> bool:
-        return random.randint(1, 20) <= self.ordiance_level+self.available_ordinance*2 and self.available_ordinance >= 1
+        return random.randint(1, 20) <= self.ordinance_level+self.available_ordinance*2 and self.available_ordinance >= 1
 
     def hit_callback(self) -> None:
         self.shots_hit += 1
@@ -419,7 +423,6 @@ class XCOMSoldier(Unit):
             else:
                 self.next_level_requirement = math.ceil(self.next_level_requirement*XCOMSoldier.exp_level_mult) + XCOMSoldier.base_exp_increment
 
-
     def level_up_bonus(self):
         hp_increase = sum([random.randint(1, self.hit_die_type) for _ in range(self.num_hit_dice)])
         log.log(f"{self}'s maximum hit points increased by {hp_increase} to {self.max_hit_points + hp_increase}")
@@ -428,7 +431,6 @@ class XCOMSoldier(Unit):
 
         for _ in range(XCOMSoldier.perks_per_level):
             self.gain_new_perk()
-
 
     def gain_new_perk(self):
         possible = self.get_available_perks()
@@ -454,23 +456,24 @@ class XCOMSoldier(Unit):
             
             if choice == Perk.ToughnessI:
                 print(f"{self} has become a lot tougher, and is able to wear more damage before going down")
-                self.number_hit_die = 2
+                self.num_hit_dice = 2
                 print(f"{self}'s hit die is now a 2d4")
             
             elif choice == Perk.ToughnessII:
                 print(f"{self} has endured enough pain, and is now heavily resisant to it")
-                self.number_hit_die = 3
+                self.num_hit_dice = 3
                 print(f"{self}'s hit die is now a 3d4")
 
             elif choice == Perk.ToughnessIII:
                 print(f"{self} is so tough they are practically a walking tank!")
-                self.number_hit_die = 4
+                self.num_hit_dice = 4
                 print(f"{self}'s hit die is now a 4d4")
 
         elif choice & Perk.Lethality:
             print(f"Overall, {self} has become much more dangerous than a typical human")
-            self.crit_chance += 1
-            print(f"{self}'s crititcal hit bonus is now at +{self.crit_chance}")
+            self.crit_level += 1
+            self.crit_chance = Unit.crit_level_table[self.crit_level]
+            print(f"{self}'s crititcal hit chance is now at +{round(self.crit_chance/1000,2)}%")
 
         elif choice & Perk.Recovery:
             print(f"{self} has become used to pain, and can now get back in the battlefield faster")
@@ -601,6 +604,8 @@ class XCOMSoldier(Unit):
             print(f"?????????????????????????????????")
 
         self.perk_flags |= choice
+
+        log.wait(newlines = 1)
 
     def get_available_perks(self):
         new = []
@@ -841,6 +846,37 @@ class XCOMSoldier(Unit):
 
 
         return new
+
+    def show_stats(self) -> None:
+        """TODO"""
+        log.log(f"{self}")
+        log.log(f"Level: {self.level}")
+        log.log(f"EXP: {self.exp}/{self.next_level_requirement}")
+        log.log(f"------------")
+        log.log(f"Max HP      :       {self.max_hit_points}")
+        log.log(f"AC          :       {self.armor_class}")
+        log.log(f"Attack Bonus:       {self.attack_bonus}")
+        log.log(f"Damage Bonus:       {self.damage_bonus}")
+        log.log(f"Weapon      :       {self.weapon.num_dice}d{self.weapon.dice_sides}")
+        log.log(f"Hit Die     :       {self.num_hit_dice}d{self.hit_die_type}")
+        log.log(f"Crit Chance :       {self.crit_chance}%")
+        log.log(f"Crit Resist :       {self.crit_resist}")
+        log.log(f"Recovery    :       {self.recovery_bonus}")
+        log.log(f"Evasion     :       {self.evasion}")
+        log.log(f"Armor       :       {self.armor}")
+        log.log(f"Ordinance   :       {self.ordinance_level}")
+        log.log(f"Explosives  :       {self.max_ordinance}")
+        log.log(f"Shielding   :       {self.max_shields} with {self.shield_regen} regen")
+        log.log(f"Bleedout    :       {self.max_bleedout}")
+        log.log(f"Retaliation :       {self.retaliation_chance}")
+        log.log(f"-----------------")
+        log.log(f"Kills       :       {self.kills}")
+        log.log(f"Damage Dealt:       {self.damage_dealt}")
+        log.log(f"Damage Taken:       {self.damage_taken}")
+        if self.shots_taken == 0:
+            print(f"Accuracy    :       -/-")
+        else:
+            print(f"Accuracy    :       {round(self.shots_hit/self.shots_taken, 3)*100}%")
 
 
 humans = [

@@ -1,9 +1,7 @@
 """File for battle/fight relate data"""
 import random
-from sre_parse import State
 from typing import List
 from enum import Enum, auto
-from xml.dom.NodeFilter import NodeFilter
 
 from logger import log
 from units import Unit, XCOMSoldier as Soldier, UnitState
@@ -28,6 +26,25 @@ class Battle:
         self.battlestate:Enum       =   BattleState.NullState
         self.__survived:list          =   []
         
+
+    def list_enemies(self):
+        """TODO"""
+
+        enemies = {}
+
+        for enemy in self.aliens:
+
+            if enemy.name in enemies:
+                enemies[enemy.name] += 1
+            else:
+                enemies[enemy.name] = 1
+
+        for e, num in enemies.items():
+            log.log(f"{e}: {num}")
+
+        log.log('\n')
+
+
     def fight(self) -> None:
         self.__fight()
 
@@ -43,9 +60,16 @@ class Battle:
             self.battlestate = BattleState.HumansLose
 
 
+    def say_farewell(self) -> None:
+        """TODO"""
+        if not any(self.killed_humans): return
 
 
-        
+        log.log(f"XCOM bids farewell to its fallen soldiers...")
+        for dead in self.killed_humans:
+            dead.show_stats()
+            log.wait(newlines=1)
+
 
     def __fight(self) -> None:
         """
@@ -199,15 +223,6 @@ class Battle:
             for dying in self.bleeding_out:
 
                 dying.bleedout_timer -= 1
-
-            
-
-
-
-            
-
-            
-
     
     @property
     def two_sides_remain(self) -> bool:
@@ -244,9 +259,14 @@ class BattleSeries:
 
         for battle_no, enemy_list in enumerate(self.battle_list, start=1):
             bat = Battle(self.humans, enemy_list)
+
+
+
             self.last_battle = bat
             log.log(f"Battle {battle_no}", notify=True)
+            bat.list_enemies()
             bat.fight()
+            bat.say_farewell()
 
             self.humans_kia += bat.killed_humans
             self.humans = bat.humans
