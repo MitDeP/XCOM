@@ -39,8 +39,9 @@ class Battle:
             else:
                 enemies[enemy.name] = 1
 
+        log.log(f"Upcoming Enemies:")
         for e, num in enemies.items():
-            log.log(f"{e}: {num}")
+            log.log(f"\t{e}: {num}")
 
         log.log('\n')
 

@@ -51,7 +51,8 @@ class Unit:
 
     def __init__(self, name:str, max_hit_points:int=1, armor_class:int=10, attack_bonus:int=0, weapon:Weapon=None, armor:int=0, will:int=0, max_shields:int=0,
     shield_regen:int = 0, evasion:int = 0, crit_level:int = 0, crit_resist:int = 0, number_explosives:int = 0, ordinance_level:int = 0, agro:int = 4,
-    cost:int = 10_000, proficiency:int=0, retaliation_chance:int = 0, hit_die_type:int = 0, num_hit_dice:int = 0, damage_bonus:int = 0, custom_weapon:tuple = None):
+    cost:int = 10_000, proficiency:int=0, retaliation_chance:int = 0, hit_die_type:int = 0, num_hit_dice:int = 0, damage_bonus:int = 0, custom_weapon:tuple = None,
+    id:int = None):
         self.name:str               =   name
         self.max_hit_points:int     =   max_hit_points
         self.cur_hit_points:int     =   max_hit_points
@@ -77,7 +78,7 @@ class Unit:
         self.retaliation_chance:int =   retaliation_chance
         self.hit_die_type:int       =   hit_die_type
         self.num_hit_dice:int       =   num_hit_dice
-        self.id                     =   None                #Aliens only
+        self.id                     =   id                #Aliens only
 
         self.state:UnitState        =   UnitState.Alive
 
