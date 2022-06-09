@@ -1,7 +1,6 @@
 import random
 from enum import Enum, auto, IntFlag, unique
 import math
-from re import S
 
 from items import Weapon, wep_assault_rifle, wep_shotgun, wep_laser_cannon, wep_laser_rifle, wep_plasma_cannon, wep_plasma_rifle, wep_rocket_launcher, wep_shrapnel_gun, wep_sniper, wep_void_gun
 from logger import log
@@ -21,6 +20,11 @@ class KillMethod(Enum):
     Retaliation =   auto()
     Explosive   =   auto()
 
+
+def NoneGuard(value, default):
+
+    if value == None: return default
+    return value
 
 
 class Unit:
@@ -57,25 +61,25 @@ class Unit:
         self.max_hit_points:int     =   max_hit_points
         self.cur_hit_points:int     =   max_hit_points
         self.armor_class:int        =   armor_class
-        self.attack_bonus:int       =   attack_bonus
-        self.damage_bonus:int       =   damage_bonus
+        self.attack_bonus:int       =   NoneGuard(attack_bonus, 0)
+        self.damage_bonus:int       =   NoneGuard(damage_bonus, 0)
         self.weapon:Weapon          =   weapon
-        self.armor:int              =   armor
+        self.armor:int              =   NoneGuard(armor, 0)
         self.will:int               =   will                                #Unused in old engine
-        self.max_shields:int        =   max_shields
-        self.cur_shields:int        =   max_shields
-        self.shield_regen:int       =   shield_regen
-        self.evasion:int            =   evasion
-        self.crit_level:int         =   crit_level
-        self.crit_chance:int        =   Unit.crit_level_table[crit_level]
-        self.crit_resist:int        =   crit_resist
-        self.max_ordinance:int      =   number_explosives
-        self.available_ordinance:int=   number_explosives
-        self.ordinance_level:int    =   ordinance_level
+        self.max_shields:int        =   NoneGuard(max_shields, 0)
+        self.cur_shields:int        =   NoneGuard(max_shields, 0)
+        self.shield_regen:int       =   NoneGuard(shield_regen, 0)
+        self.evasion:int            =   NoneGuard(evasion, 0)
+        self.crit_level:int         =   NoneGuard(crit_level, 0)
+        self.crit_chance:int        =   Unit.crit_level_table[self.crit_level]
+        self.crit_resist:int        =   NoneGuard(crit_resist, 0)
+        self.max_ordinance:int      =   NoneGuard(number_explosives, 0)
+        self.available_ordinance:int=   NoneGuard(number_explosives, 0)
+        self.ordinance_level:int    =   NoneGuard(ordinance_level, 0)
         self.agro:int               =   agro                                #Unused in old engine
         self.cost:int               =   cost                                #TODO move to own alien class
-        self.proficiency:int        =   proficiency
-        self.retaliation_chance:int =   retaliation_chance
+        self.proficiency:int        =   NoneGuard(proficiency, 0)
+        self.retaliation_chance:int =   NoneGuard(retaliation_chance, 0)
         self.hit_die_type:int       =   hit_die_type
         self.num_hit_dice:int       =   num_hit_dice
         self.id                     =   id                #Aliens only
@@ -211,6 +215,8 @@ class Unit:
     def attack(self, target):
         """Function for making a standard attack against another target"""
 
+        self.shots_taken += 1
+
         log.log(f"{self} attacks {target}")
 
         attack_roll = self.roll_to_attack()
@@ -249,7 +255,7 @@ class Unit:
 
         elif not target.alive:
             self.kill_callback(kill_method=KillMethod.Explosive)
-            log.log(f"{self} kills {target} with a explosive")
+            log.log(f"{self} kills {target} with an explosive")
 
     def refresh(self):
         """Function for resetting a unit's hit points to max, 
@@ -433,6 +439,8 @@ class XCOMSoldier(Unit):
         for _ in range(XCOMSoldier.perks_per_level):
             self.gain_new_perk()
 
+        log.wait(newlines = 1)
+
     def gain_new_perk(self):
         possible = self.get_available_perks()
 
@@ -493,7 +501,7 @@ class XCOMSoldier(Unit):
 
         elif choice & Perk.Shielding:
             print(f"{self} has gotten their armor upgraded to use more high-tech energy shielding")
-            self.improve_shielding(1)
+            self.__improve_shielding(1)
             print(f"{self}'s energy shields are now at +{self.max_shields}")
 
         elif choice & Perk.Capacitor:
@@ -598,15 +606,13 @@ class XCOMSoldier(Unit):
         elif choice & Perk.Vengeance:
 
             print(f"{self} has had enough of getting shot. No more will they take it lying down")
-            self.retaliation += 1
-            print(f"{self}'s retaliation level has increased to {self.retaliation}")
+            self.retaliation_chance += 1
+            print(f"{self}'s retaliation level has increased to {self.retaliation_chance}")
 
         else:
             print(f"?????????????????????????????????")
 
         self.perk_flags |= choice
-
-        log.wait(newlines = 1)
 
     def get_available_perks(self):
         new = []
@@ -848,6 +854,12 @@ class XCOMSoldier(Unit):
 
         return new
 
+
+    def __improve_shielding(self, amt):
+        self.max_shields += amt
+        self.cur_shields += amt
+
+        
     def show_stats(self) -> None:
         """TODO"""
         log.log(f"{self}")
@@ -860,7 +872,7 @@ class XCOMSoldier(Unit):
         log.log(f"Damage Bonus:       {self.damage_bonus}")
         log.log(f"Weapon      :       {self.weapon.num_dice}d{self.weapon.dice_sides}")
         log.log(f"Hit Die     :       {self.num_hit_dice}d{self.hit_die_type}")
-        log.log(f"Crit Chance :       {self.crit_chance}%")
+        log.log(f"Crit Chance :       {self.crit_chance/10}%")
         log.log(f"Crit Resist :       {self.crit_resist}")
         log.log(f"Recovery    :       {self.recovery_bonus}")
         log.log(f"Evasion     :       {self.evasion}")
@@ -877,7 +889,7 @@ class XCOMSoldier(Unit):
         if self.shots_taken == 0:
             print(f"Accuracy    :       -/-")
         else:
-            print(f"Accuracy    :       {round(self.shots_hit/self.shots_taken, 3)*100}%")
+            print(f"Accuracy    :       {self.accuracy}%")
 
 
 humans = [

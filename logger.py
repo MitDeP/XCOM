@@ -9,9 +9,10 @@ class Logger:
         self._debug:bool        =   False
         self._warning:bool      =   True
         self.buffer:bool        =   True
+        self.no_notify:bool     =   False
 
     def log(self, msg:str, notify:bool = False):
-        if notify:
+        if notify and not self.no_notify:
             input(msg)
         else:
             print(msg)

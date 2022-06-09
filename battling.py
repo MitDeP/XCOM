@@ -172,7 +172,7 @@ class Battle:
 
                     targets = random.sample(self.humans, number)
                     for target in targets:
-                        human.attack_with_explosives(target)
+                        alien.attack_with_explosives(target)
 
                         if target.is_bleeding_out:
                             self.humans.remove(target)
@@ -292,3 +292,8 @@ class BattleSeries:
     def process_between_battles(self) -> bool:
         return self.humans_heal_between_battles \
         or self.humans_level_between_battles
+
+
+    @property
+    def humans_defeated(self):
+        return not any(self.humans)
